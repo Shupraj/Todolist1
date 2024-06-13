@@ -1,98 +1,113 @@
 import React, { useState, useEffect } from 'react';
-
 function TodoList() {
-  const [tasks, setTasks] = useState({
-    incomplete: [],
-    inProgress: [],
-    completed: []
-  });
+  const [load, setload] = useState(false)
+  const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
-  const apiUrl = ''; // Example API URL
-
   useEffect(() => {
     async function fetchTasks() {
       try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        const incompleteTasks = data.filter(task => !task.completed);
-        const completedTasks = data.filter(task => task.completed);
-        setTasks({
-          incomplete: incompleteTasks.map(task => task.title),
-          inProgress: [],
-          completed: completedTasks.map(task => task.title)
+        const response = await fetch('https://todolist-39580-default-rtdb.firebaseio.com/todo.json')
+        const data = await response.json()
+        const objectData = {};
+        Object.keys(data).forEach((key) => {
+          objectData[key] = data[key];
         });
+        
+        setTasks(objectData);
       } catch (error) {
-        console.error('Error fetching tasks:', error);
+        console.log("Error", error);
       }
     }
-
     fetchTasks();
-  }, []);
-
+  }, [load]);
+  console.log(tasks)
   const handleInputChange = (event) => {
     setNewTask(event.target.value);
   };
-
-  const addTask = () => {
+  const addTask = async () => {
     if (newTask.trim() === '') return;
-    setTasks((prevTasks) => ({
-      ...prevTasks,
-      incomplete: [...prevTasks.incomplete, newTask.trim()]
-    }));
-    setNewTask('');
-    console.log(tasks);
+    try {
+      const response = await fetch('https://todolist-39580-default-rtdb.firebaseio.com/todo.json', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: newTask,
+          status: 'incomplete'
+        })
+      })
+      const result = await response.json()
+      console.log(result)
+      setload(!load)
+    } catch (error) {
+      console.log("Error", error)
+    }
   };
-
-  const moveTask = (taskIndex, from, to) => {
-    const updatedTasks = { ...tasks };
-    const taskToMove = updatedTasks[from][taskIndex];
-    updatedTasks[from] = updatedTasks[from].filter((_, index) => index !== taskIndex);
-    updatedTasks[to] = [...updatedTasks[to], taskToMove];
-    setTasks(updatedTasks);
+  const moveTask = async (task_id, to) => {
+    console.log(task_id,to)
+    try{
+      const response = await fetch(`https://todolist-39580-default-rtdb.firebaseio.com/todo/${task_id}.json`,{
+        method:'PATCH',
+        body:JSON.stringify({
+          status:to
+        })
+      })
+      const result = await response.json()
+      console.log(result)
+      setload(!load)
+    } catch(error){
+      console.log("Error", error)
+    }
+    
+    // const updatedTasks = { ...tasks };
+    // const taskToMove = updatedTasks[from][taskIndex];
+    // updatedTasks[from] = updatedTasks[from].filter((_, index) => index !== taskIndex);
+    // updatedTasks[to] = [...updatedTasks[to], taskToMove];
+    // setTasks(updatedTasks);
   };
-
   return (
     <div className="container mx-auto py-4">
       <div className="flex justify-around">
         <div className="w-1/3">
           <h2 className="text-lg font-bold mb-2">Incomplete</h2>
           <ul>
-            {tasks.incomplete.map((task, index) => (
-              <li key={index} className="flex items-center justify-between mb-2">
-                <span>{task}</span>
-                <button className="btn" onClick={() => moveTask(index, 'incomplete', 'inProgress')}>
-                  Start Progress
-                </button>
-              </li>
+          {tasks && Object.values(tasks).map((task, index) => (
+              task.status === "incomplete" && (
+                <li key={index} className="flex items-center justify-between mb-2">
+                  <span>{task.title}</span>
+                  <button className="btn" onClick={() => moveTask(task.id, 'inProgress')}>
+                    Start Progress
+                  </button>
+                </li>
+              )
             ))}
           </ul>
         </div>
         <div className="w-1/3">
           <h2 className="text-lg font-bold mb-2">On Progress</h2>
           <ul>
-            {tasks.inProgress.map((task, index) => (
-              <li key={index} className="flex items-center justify-between mb-2">
-                <span>{task}</span>
-                <button className="btn" onClick={() => moveTask(index, 'inProgress', 'completed')}>
+          {tasks && Object.values(tasks).map((task, index) => (
+              task.status === "inProgress" && (<li key={index} className="flex items-center justify-between mb-2">
+                <span>{task.title}</span>
+                <button className="btn" onClick={() => moveTask(task.id, 'completed')}>
                   Mark Completed
                 </button>
-                <button className="btn" onClick={() => moveTask(index, 'inProgress', 'incomplete')}>
+                <button className="btn" onClick={() => moveTask(task.id, 'incomplete')}>
                   Revert
                 </button>
-              </li>
-            ))}
+              </li>)
+            )
+            )}
           </ul>
         </div>
         <div className="w-1/3">
           <h2 className="text-lg font-bold mb-2">Task Completed</h2>
           <ul>
-            {tasks.completed.map((task, index) => (
-              <li key={index} className="flex items-center justify-between mb-2">
-                <span>{task}</span>
-                <button className="btn" onClick={() => moveTask(index, 'completed', 'incomplete')}>
+          {tasks && Object.values(tasks).map((task, index) => (
+              task.status==="completed" && (<li key={index} className="flex items-center justify-between mb-2">
+                <span>{task.title}</span>
+                <button className="btn" onClick={() => moveTask(task.id, 'inProgress')}>
                   Revert
                 </button>
-              </li>
+              </li>)
             ))}
           </ul>
         </div>
@@ -112,5 +127,4 @@ function TodoList() {
     </div>
   );
 }
-
 export default TodoList;
